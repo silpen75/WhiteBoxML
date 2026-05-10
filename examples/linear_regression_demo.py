@@ -1,79 +1,60 @@
 # -*- coding: utf-8 -*-
 """
 Script de demostración para el modelo de Regresión Lineal.
-Muestra el uso de la solución analítica y el descenso por gradiente
-utilizando datasets reales.
+Compara Solución Analítica vs Diferentes modos de Gradiente.
 
 :authors: Equipo Regresión Lineal
-:date: mayo 2026
+:date: 10/05/26       
 """
 
 from __future__ import annotations
 import matplotlib.pyplot as plt
 import numpy as np
+import time  # Para medir eficiencia
 from sklearn.datasets import fetch_california_housing
 from whiteboxml.linear_models.linear_regression import LinearRegression
 
 def run_demo():
-    """
-    Ejecuta la comparación de métodos de optimización y visualiza resultados.
-    """
-    print("--- WhiteBoxML: Demo de Regresión Lineal ---")
+    print("--- WhiteBoxML: Análisis Comparativo de Regresión Lineal ---")
     
-    # 1. Carga de datos (California Housing - Predicción de precios de casas)
-    print("\nCargando dataset de California Housing...")
     data = fetch_california_housing()
     X, y = data.data, data.target
 
-    # 2. Configuración y entrenamiento de modelos
-    print("Entrenando modelos...")
-    
-    # Modelo con Solución Analítica
-    model_an = LinearRegression(method="analytic")
-    model_an.fit(X, y)
-    print("✓ Solución analítica completada.")
+    modelos = {
+        "Analítico": LinearRegression(method="analytic"),
+        "GD Batch": LinearRegression(method="gd", mode="batch", iterations=1000, normalize=True),
+        "Mini-Batch": LinearRegression(method="gd", mode="mbgd", batch_size=32, iterations=1000, normalize=True),
+        "SGD": LinearRegression(method="gd", mode="sgd", iterations=1000, normalize=True)
+    }
 
-    # Modelo con Descenso por Gradiente Batch (Normalizado)
-    # Se cambió max_iter por iterations
-    model_gd_batch = LinearRegression(
-        method="gd", 
-        mode="batch", 
-        learning_rate=0.01, 
-        iterations=1000, 
-        normalize=True
-    )
-    model_gd_batch.fit(X, y)
-    print(f"✓ GD Batch completado en {len(model_gd_batch.cost_history)} iteraciones.")
+    resultados = {}
 
-    # Modelo con Descenso por Gradiente Estocástico (SGD)
-    # Se cambió max_iter por iterations
-    model_sgd = LinearRegression(
-        method="gd", 
-        mode="sgd", 
-        learning_rate=0.001, 
-        iterations=2000, 
-        normalize=True
-    )
-    model_sgd.fit(X, y)
-    print(f"✓ SGD completado.")
+    for nombre, model in modelos.items():
+        start = time.time()
+        model.fit(X, y)
+        end = time.time()
+        
+        costo_final = model.compute_cost(model._add_intercept(model.fit_standardize(X)[0] if model.normalize else X), y, model._theta_scaled)
+        resultados[nombre] = {"tiempo": end - start, "costo": costo_final, "historial": model.cost_history}
+        print(f"✓ {nombre} entrenado.")
 
-    # 3. Visualización de la convergencia (Historial de Costo)
-    print("\nGenerando gráficos de convergencia...")
-    plt.figure(figsize=(12, 6))
-    
-    # Graficamos la curva de aprendizaje
-    plt.plot(model_gd_batch.cost_history, label="Batch GD (lr=0.01)", linewidth=2)
-    plt.plot(model_sgd.cost_history, label="SGD (lr=0.001)", alpha=0.6, linestyle='--')
-    
-    plt.title("Curva de Aprendizaje: Evolución del Error Cuadrático Medio", fontsize=14)
-    plt.xlabel("Número de Iteraciones", fontsize=12)
-    plt.ylabel("Costo (MSE) - Escala Log", fontsize=12)
-    plt.yscale('log')  # Ayuda a ver la caída drástica al principio
+    plt.figure(figsize=(12, 7))
+    for nombre in ["GD Batch", "Mini-Batch", "SGD"]:
+        plt.plot(resultados[nombre]["historial"], label=f"{nombre} (Final MSE: {resultados[nombre]['costo']:.4f})")
+
+    plt.title("Convergencia de Métodos Iterativos en California Housing", fontsize=14)
+    plt.xlabel("Iteraciones", fontsize=12)
+    plt.ylabel("Costo (MSE) - Escala Logarítmica", fontsize=12)
+    plt.yscale('log')
     plt.legend()
-    plt.grid(True, which="both", ls="-", alpha=0.3)
+    plt.grid(True, which="both", alpha=0.3)
     
-    print("\nPRO TIP: El gráfico muestra cómo el error disminuye a medida que el modelo 'aprende'.")
-    print("Mostrando gráfico. Cierra la ventana para terminar.")
+    print("\n--- RESUMEN DE RENDIMIENTO ---")
+    print(f"{'Método':<15} | {'Error Final (MSE)':<18} | {'Tiempo (s)':<10}")
+    print("-" * 50)
+    for m in resultados:
+        print(f"{m:<15} | {resultados[m]['costo']:<18.6f} | {resultados[m]['tiempo']:<10.6f}")
+
     plt.show()
 
 if __name__ == "__main__":
