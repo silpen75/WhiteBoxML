@@ -2,6 +2,10 @@
 import numpy as np
 from typing import List, Tuple
 
+# -*- coding: utf-8 -*-
+import numpy as np
+from typing import List, Tuple
+
 class LinearRegression():
     """
     Modelo de regresión lineal con soporte para:
